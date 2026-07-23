@@ -2,6 +2,7 @@ import { Box, Text, useApp, useInput } from "ink";
 import { Alert, Select, Spinner, StatusMessage } from "@inkjs/ui";
 import { useEffect, useState, type ReactNode } from "react";
 import { Brand } from "../ui/brand.tsx";
+import { FilterableSelect } from "../ui/filterable-select.tsx";
 import { renderPrompt } from "../ui/render.tsx";
 import {
   loadCountryOptions,
@@ -141,7 +142,7 @@ export async function showCountryPicker(): Promise<TuiIntent> {
       const [loading, setLoading] = useState(true);
       const [error, setError] = useState<string | null>(null);
       const [options, setOptions] = useState<
-        Array<{ label: string; value: string }>
+        Array<{ label: string; value: string; searchText: string }>
       >([]);
 
       useEffect(() => {
@@ -156,16 +157,14 @@ export async function showCountryPicker(): Promise<TuiIntent> {
         })();
       }, []);
 
-      useInput((input, key) => {
-        if (input === "q" || key.escape || input === "b") {
-          resolve({ type: "back-home" });
-          exit();
-        }
-      });
+      const goBack = () => {
+        resolve({ type: "back-home" });
+        exit();
+      };
 
       return (
         <Box flexDirection="column">
-          <Brand subtitle="Countries · enter to connect · b back" />
+          <Brand subtitle="Countries · type to filter · enter to connect" />
           {loading ? <Spinner label="Fetching countries" /> : null}
           {error ? (
             <Alert variant="error" title="Error">
@@ -173,18 +172,17 @@ export async function showCountryPicker(): Promise<TuiIntent> {
             </Alert>
           ) : null}
           {!loading && !error ? (
-            <Select
+            <FilterableSelect
               visibleOptionCount={12}
-              options={[
-                { label: "← Back", value: "__back__" },
-                ...options,
-              ]}
+              options={options}
+              leadingOptions={[{ label: "← Back", value: "__back__" }]}
+              onCancel={goBack}
               onChange={(value) => {
                 if (value === "__back__") {
-                  resolve({ type: "back-home" });
-                } else {
-                  resolve({ type: "connect-country", country: value });
+                  goBack();
+                  return;
                 }
+                resolve({ type: "connect-country", country: value });
                 exit();
               }}
             />
@@ -204,7 +202,7 @@ export async function showServerPicker(country?: string): Promise<TuiIntent> {
       const [loading, setLoading] = useState(true);
       const [error, setError] = useState<string | null>(null);
       const [options, setOptions] = useState<
-        Array<{ label: string; value: string }>
+        Array<{ label: string; value: string; searchText: string }>
       >([]);
 
       useEffect(() => {
@@ -212,7 +210,11 @@ export async function showServerPicker(country?: string): Promise<TuiIntent> {
           try {
             const rows = await loadServerOptions({ country });
             setOptions(
-              rows.map((row) => ({ label: row.label, value: row.value })),
+              rows.map((row) => ({
+                label: row.label,
+                value: row.value,
+                searchText: row.searchText,
+              })),
             );
           } catch (err) {
             setError(err instanceof Error ? err.message : String(err));
@@ -222,17 +224,15 @@ export async function showServerPicker(country?: string): Promise<TuiIntent> {
         })();
       }, []);
 
-      useInput((input, key) => {
-        if (input === "q" || key.escape || input === "b") {
-          resolve({ type: "back-home" });
-          exit();
-        }
-      });
+      const goBack = () => {
+        resolve({ type: "back-home" });
+        exit();
+      };
 
       return (
         <Box flexDirection="column">
           <Brand
-            subtitle={`Servers${country ? ` · ${country}` : ""} · enter to connect · b back`}
+            subtitle={`Servers${country ? ` · ${country}` : ""} · type to filter · enter to connect`}
           />
           {loading ? <Spinner label="Fetching servers" /> : null}
           {error ? (
@@ -241,18 +241,17 @@ export async function showServerPicker(country?: string): Promise<TuiIntent> {
             </Alert>
           ) : null}
           {!loading && !error ? (
-            <Select
+            <FilterableSelect
               visibleOptionCount={14}
-              options={[
-                { label: "← Back", value: "__back__" },
-                ...options,
-              ]}
+              options={options}
+              leadingOptions={[{ label: "← Back", value: "__back__" }]}
+              onCancel={goBack}
               onChange={(value) => {
                 if (value === "__back__") {
-                  resolve({ type: "back-home" });
-                } else {
-                  resolve({ type: "connect-server", server: value });
+                  goBack();
+                  return;
                 }
+                resolve({ type: "connect-server", server: value });
                 exit();
               }}
             />

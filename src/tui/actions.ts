@@ -19,6 +19,7 @@ import {
   type LogicalServer,
 } from "../proton/types.ts";
 import { showMessage } from "../ui/message.tsx";
+import { countryName } from "../util/countries.ts";
 import { formatConnectedSummary } from "../util/summary.ts";
 import { bringDown, bringUp, tunnelStatus } from "../wireguard/manager.ts";
 
@@ -46,14 +47,20 @@ export async function loadHomeSnapshot(): Promise<{
 }
 
 export async function loadCountryOptions(): Promise<
-  Array<{ label: string; value: string }>
+  Array<{ label: string; value: string; searchText: string }>
 > {
   const { session } = await requireSession();
   const servers = await fetchLogicalServers(session);
-  return listCountries(servers).map((country) => ({
-    value: country.code,
-    label: `${country.code.padEnd(4)} ${String(country.count).padStart(4)} servers · ${country.cities.slice(0, 3).join(", ")}${country.cities.length > 3 ? "…" : ""}`,
-  }));
+  return listCountries(servers).map((country) => {
+    const name = countryName(country.code);
+    const cityPreview = country.cities.slice(0, 3).join(", ");
+    const more = country.cities.length > 3 ? "…" : "";
+    return {
+      value: country.code,
+      label: `${country.code.padEnd(4)}${name.padEnd(22)} ${String(country.count).padStart(3)} · ${cityPreview}${more}`,
+      searchText: `${country.code} ${name} ${country.cities.join(" ")}`,
+    };
+  });
 }
 
 export async function loadServerOptions(filter: {
@@ -62,7 +69,14 @@ export async function loadServerOptions(filter: {
   secureCore?: boolean;
   tor?: boolean;
   freeOnly?: boolean;
-}): Promise<Array<{ label: string; value: string; server: LogicalServer }>> {
+}): Promise<
+  Array<{
+    label: string;
+    value: string;
+    searchText: string;
+    server: LogicalServer;
+  }>
+> {
   const { session } = await requireSession();
   const servers = await fetchLogicalServers(session);
   const country = filter.country?.toUpperCase();
@@ -81,11 +95,15 @@ export async function loadServerOptions(filter: {
     })
     .sort((a, b) => a.Score - b.Score || a.Load - b.Load)
     .slice(0, 80)
-    .map((server) => ({
-      server,
-      value: server.Name,
-      label: `${server.Name.padEnd(14)} ${server.ExitCountry} ${(server.City || "-").slice(0, 14).padEnd(14)} ${String(server.Load).padStart(3)}%`,
-    }));
+    .map((server) => {
+      const name = countryName(server.ExitCountry);
+      return {
+        server,
+        value: server.Name,
+        label: `${server.Name.padEnd(14)} ${server.ExitCountry} ${(server.City || "-").slice(0, 14).padEnd(14)} ${String(server.Load).padStart(3)}%`,
+        searchText: `${server.Name} ${server.ExitCountry} ${name} ${server.City ?? ""}`,
+      };
+    });
 }
 
 export async function connectWithFilter(filter: ServerFilter): Promise<void> {
