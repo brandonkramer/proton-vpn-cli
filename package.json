@@ -1,0 +1,60 @@
+{
+  "name": "proton-vpn-cli",
+  "version": "0.1.0",
+  "description": "Unofficial Proton VPN CLI for macOS and Windows (WireGuard + interactive TUI)",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "private": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/brandonkramer/proton-vpn-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/brandonkramer/proton-vpn-cli/issues"
+  },
+  "homepage": "https://github.com/brandonkramer/proton-vpn-cli#readme",
+  "author": "Brandon Kramer",
+  "keywords": [
+    "proton",
+    "protonvpn",
+    "vpn",
+    "wireguard",
+    "cli",
+    "tui",
+    "bun"
+  ],
+  "bin": {
+    "protonvpn": "./src/index.ts"
+  },
+  "files": [
+    "src",
+    "scripts",
+    "LICENSE",
+    "README.md",
+    "package.json",
+    "tsconfig.json"
+  ],
+  "scripts": {
+    "postinstall": "bun run scripts/patch-openpgp.ts",
+    "start": "bun run src/index.ts",
+    "protonvpn": "bun run src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "lint": "tsc --noEmit"
+  },
+  "engines": {
+    "bun": ">=1.1.0"
+  },
+  "dependencies": {
+    "@inkjs/ui": "^2.0.0",
+    "@protontech/crypto": "^2.1.1",
+    "commander": "^14.0.0",
+    "ink": "^7.1.1",
+    "react": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/react": "^19.2.17",
+    "typescript": "^5.9.3"
+  }
+}
