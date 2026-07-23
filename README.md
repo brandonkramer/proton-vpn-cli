@@ -103,40 +103,6 @@ bun test
 bun run src/index.ts --help
 ```
 
-## Publishing / releasing
-
-```bash
-bun add -g proton-vpn-cli
-# or pin a GitHub release:
-bun install -g github:brandonkramer/proton-vpn-cli#v0.1.0
-```
-
-Published on npm: [proton-vpn-cli](https://www.npmjs.com/package/proton-vpn-cli)
-
-### Cut a new version (maintainers)
-
-One-time setup: create an npm **Automation** token at [npmjs.com/settings/~/tokens](https://www.npmjs.com/settings/~/tokens), then add it as a repo secret named `NPM_TOKEN`:
-
-```bash
-gh secret set NPM_TOKEN --repo brandonkramer/proton-vpn-cli
-# paste the token when prompted
-```
-
-**Option A — GitHub Actions UI (recommended)**  
-1. Open [Actions → Release](https://github.com/brandonkramer/proton-vpn-cli/actions/workflows/release.yml)  
-2. **Run workflow**  
-3. Enter version (e.g. `0.2.0`)  
-4. Workflow bumps `package.json`, pushes tag `v0.2.0`, runs checks, creates the GitHub Release, and runs `npm publish`
-
-**Option B — git tag**  
-```bash
-# bump "version" in package.json first, commit, then:
-git tag v0.2.0
-git push origin v0.2.0
-```
-
-CI runs on every push/PR to `main`.
-
 ## License
 
 [GPL-3.0-or-later](LICENSE) (required by `@protontech/crypto`).
