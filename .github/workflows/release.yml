@@ -16,6 +16,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write # npm Trusted Publisher (OIDC)
 
 concurrency:
   group: release-${{ github.event_name }}-${{ github.ref }}
@@ -70,10 +71,11 @@ jobs:
           fi
           git push origin "v${VERSION}"
 
-  # Tag push (manual or from prepare): verify, GitHub Release, npm publish
+  # Tag push (manual or from prepare): verify, GitHub Release, npm publish via OIDC
   publish:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    environment: npm # must match Trusted Publisher "Environment name"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -165,20 +167,14 @@ jobs:
               $PRERELEASE_FLAG
           fi
 
-      - name: Publish to npm
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Publish to npm (Trusted Publisher)
         run: |
           set -euo pipefail
-          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
-            echo "::error::Missing repo secret NPM_TOKEN. Add an npm automation token at Settings → Secrets → Actions."
-            exit 1
-          fi
-
           VERSION="${{ steps.ver.outputs.version }}"
           if npm view "proton-vpn-cli@${VERSION}" version >/dev/null 2>&1; then
             echo "npm already has proton-vpn-cli@${VERSION} — skipping publish"
             exit 0
           fi
 
-          npm publish --access public
+          # OIDC trusted publishing — no NPM_TOKEN required
+          npm publish --access public --provenance
