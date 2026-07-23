@@ -69,7 +69,11 @@ jobs:
           else
             git tag "v${VERSION}"
           fi
-          git push origin "v${VERSION}"
+          if git ls-remote --exit-code --tags origin "refs/tags/v${VERSION}" >/dev/null 2>&1; then
+            echo "Tag v${VERSION} already on origin"
+          else
+            git push origin "v${VERSION}"
+          fi
 
   # After prepare (workflow_dispatch) or on tag push: GitHub Release + npm publish via OIDC.
   # Note: tag pushes from GITHUB_TOKEN do not start a new workflow run, so publish must
@@ -83,6 +87,9 @@ jobs:
       )
     runs-on: ubuntu-latest
     environment: npm # must match Trusted Publisher "Environment name"
+    permissions:
+      contents: write
+      id-token: write # required for npm Trusted Publisher OIDC
     steps:
       - uses: actions/checkout@v4
         with:
@@ -94,9 +101,10 @@ jobs:
         with:
           bun-version: latest
 
+      # Node 24 + current npm required for Trusted Publisher OIDC (npm 11.5.1+)
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
           registry-url: "https://registry.npmjs.org"
 
       - name: Install dependencies
@@ -190,6 +198,11 @@ jobs:
             echo "npm already has proton-vpn-cli@${VERSION} — skipping publish"
             exit 0
           fi
+
+          # setup-node injects a dummy NODE_AUTH_TOKEN that blocks OIDC — clear it
+          unset NODE_AUTH_TOKEN
+          npm install -g npm@latest
+          npm --version
 
           # OIDC trusted publishing — no NPM_TOKEN required
           npm publish --access public --provenance
