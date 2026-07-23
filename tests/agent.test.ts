@@ -27,6 +27,7 @@ afterEach(() => {
     else process.env[key] = value;
   }
   configureAgentFlags({ json: false, yes: false, interactiveSudo: false });
+  process.exitCode = 0;
 });
 
 describe("agent mode", () => {
@@ -93,7 +94,8 @@ describe("agent mode", () => {
     } finally {
       process.stdout.write = originalOut;
       process.stderr.write = originalErr;
-      process.exitCode = undefined;
+      // Bun/Node treat a leftover process.exitCode as the process exit status.
+      process.exitCode = 0;
     }
   });
 
