@@ -8,17 +8,27 @@ Authenticates with Proton’s VPN API, creates a WireGuard certificate, and conn
 
 ## Install
 
-Requires [Bun](https://bun.sh) ≥ 1.1 (needed at runtime even when installing from npm).
+Requires [Bun](https://bun.sh) ≥ 1.1 at runtime (including when you install with npm).
+
+### Bun
 
 ```bash
 bun add -g proton-vpn-cli
-npm install -g proton-vpn-cli
+```
 
-# or directly from GitHub
+Or from GitHub:
+
+```bash
 bun install -g github:brandonkramer/proton-vpn-cli
 ```
 
-Then:
+### npm
+
+```bash
+npm install -g proton-vpn-cli
+```
+
+### Run
 
 ```bash
 protonvpn          # interactive TUI
