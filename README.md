@@ -73,6 +73,7 @@ protonvpn tui
 
 ```bash
 protonvpn signin [username]
+protonvpn signin --pass "pass://Personal/Proton"   # optional: Proton Pass CLI
 protonvpn signout
 protonvpn countries
 protonvpn servers --country US
@@ -82,6 +83,24 @@ protonvpn connect US#23
 protonvpn status
 protonvpn disconnect
 ```
+
+### Sign in with Proton Pass (optional)
+
+If you use [Proton Pass CLI](https://protonpass.github.io/pass-cli/) (`pass-cli`),
+you can pull username/password (and TOTP when present) from a login item instead
+of typing them:
+
+```bash
+pass-cli login   # once, if needed
+protonvpn signin --pass "pass://Personal/Proton"
+# or:
+export PROTONVPN_PASS="pass://Personal/Proton"
+protonvpn signin
+```
+
+`Vault/Item` works too (the `pass://` prefix is optional). A username argument
+still overrides the Pass username. Interactive prompts remain the default when
+`--pass` / `PROTONVPN_PASS` is unset.
 
 | Flag | Meaning |
 |------|---------|

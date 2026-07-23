@@ -6,7 +6,7 @@ import {
   AUTH_INFO_PATH,
   AUTH_PATH,
   AUTH_REFRESH_PATH,
-  LOGICALS_PATH,
+  VPN_PATH,
 } from "./constants.ts";
 import { protonFetch } from "./http.ts";
 import {
@@ -65,7 +65,7 @@ export function authInfoRequiresTotp(info: AuthInfoResponse): boolean {
 
 export async function verifySession(session: Session): Promise<boolean> {
   try {
-    const { status, data } = await protonFetch<{ Code: number }>(LOGICALS_PATH, {
+    const { status, data } = await protonFetch<{ Code: number }>(VPN_PATH, {
       session,
     });
     return status === 200 && isSuccessCode(data.Code);

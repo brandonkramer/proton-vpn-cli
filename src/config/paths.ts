@@ -24,3 +24,11 @@ export function tunnelMetaPath(): string {
 export function wireguardConfPath(): string {
   return join(configDir(), `${TUNNEL_INTERFACE}.conf`);
 }
+
+export function logicalsCachePath(): string {
+  return join(configDir(), "logicals-cache.json");
+}
+
+export function wireguardCredentialsPath(): string {
+  return join(configDir(), "wireguard-credentials.json");
+}

@@ -97,6 +97,24 @@ export interface ActiveTunnel {
   connectedAt: string;
 }
 
+export interface LogicalsCache {
+  fetchedAt: string;
+  etag: string | null;
+  logicalServers: LogicalServer[];
+}
+
+/** Persisted client keypair + Proton certificate registration metadata. */
+export interface WireGuardCredentials {
+  username: string;
+  publicKeyPem: string;
+  x25519PrivateKeyBase64: string;
+  deviceName: string;
+  /** Unix seconds — renew certificate at or after this time. */
+  refreshTime: number;
+  /** Unix seconds — hard expiry. */
+  expirationTime: number;
+}
+
 export const FEATURE_SECURE_CORE = 1;
 export const FEATURE_TOR = 2;
 export const FEATURE_P2P = 4;

@@ -7,6 +7,10 @@ export const AUTH_2FA_PATH = "/auth/2fa";
 export const AUTH_REFRESH_PATH = "/auth/refresh";
 export const CERTIFICATE_PATH = "/vpn/v1/certificate";
 export const LOGICALS_PATH = "/vpn/v1/logicals";
+/** Lightweight VPN entitlement endpoint used for session verification. */
+export const VPN_PATH = "/vpn";
+/** How long a cached logicals response is considered fresh. */
+export const LOGICALS_TTL_MS = 10 * 60 * 1000;
 
 /**
  * App version header. Using the Linux VPN client format avoids some CAPTCHA

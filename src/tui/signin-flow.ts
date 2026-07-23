@@ -1,5 +1,10 @@
 import { saveSession } from "../config/store.ts";
 import {
+  resolvePassLogin,
+  resolvePassRefFromEnv,
+  resolvePassTotp,
+} from "../pass/credentials.ts";
+import {
   authInfoRequiresTotp,
   ensureVpnScope,
   getAuthInfo,
@@ -15,8 +20,33 @@ import {
 } from "../ui/prompts.tsx";
 import { runTask } from "../ui/task.tsx";
 
+export interface SigninOptions {
+  usernameArg?: string;
+  /** Proton Pass item ref (`pass://Vault/Item` or `Vault/Item`), or from PROTONVPN_PASS. */
+  passRef?: string;
+}
+
+async function resolveTotp(
+  passRef: string | undefined,
+  prompt: () => Promise<string>,
+): Promise<string> {
+  if (passRef) {
+    const fromPass = await resolvePassTotp(passRef);
+    if (fromPass) return fromPass;
+  }
+  return prompt();
+}
+
 /** Interactive sign-in used by the TUI (same UX as `protonvpn signin`). */
-export async function runInteractiveSignin(usernameArg?: string): Promise<void> {
+export async function runInteractiveSignin(
+  options: SigninOptions | string = {},
+): Promise<void> {
+  // Backward-compatible: older callers passed a username string.
+  const opts: SigninOptions =
+    typeof options === "string" ? { usernameArg: options } : options;
+  const passRef = resolvePassRefFromEnv(opts.passRef);
+  const usernameArg = opts.usernameArg;
+
   const reused = await runTask({
     title: "Sign in",
     steps: [{ id: "session", label: "Checking saved session" }],
@@ -44,16 +74,38 @@ export async function runInteractiveSignin(usernameArg?: string): Promise<void> 
   });
   if (reused) return;
 
-  const entered =
-    usernameArg?.trim() ||
-    (await inkPromptText("Username or email", {
-      placeholder: "you@proton.me",
-      hint: "Email is fine — the domain will be stripped for Proton SRP.",
-    }));
-  const username = normalizeUsername(entered);
-  const password = await inkPromptPassword("Proton password", {
-    hint: "This is your Proton account password.",
-  });
+  let username: string;
+  let password: string;
+
+  if (passRef) {
+    const fromPass = await runTask({
+      title: "Sign in",
+      steps: [{ id: "pass", label: "Reading credentials from Proton Pass" }],
+      note: passRef,
+      run: async (ui) => {
+        ui.updateStep("pass", { status: "running" });
+        const login = await resolvePassLogin(passRef);
+        ui.updateStep("pass", {
+          status: "done",
+          detail: normalizeUsername(login.username),
+        });
+        return login;
+      },
+    });
+    username = normalizeUsername(usernameArg?.trim() || fromPass.username);
+    password = fromPass.password;
+  } else {
+    const entered =
+      usernameArg?.trim() ||
+      (await inkPromptText("Username or email", {
+        placeholder: "you@proton.me",
+        hint: "Email is fine — the domain will be stripped for Proton SRP.",
+      }));
+    username = normalizeUsername(entered);
+    password = await inkPromptPassword("Proton password", {
+      hint: "This is your Proton account password.",
+    });
+  }
 
   const needsLoginTotp = await runTask({
     title: "Sign in",
@@ -71,7 +123,9 @@ export async function runInteractiveSignin(usernameArg?: string): Promise<void> 
     },
   });
 
-  const totp = needsLoginTotp ? await inkPromptTotp() : undefined;
+  const totp = needsLoginTotp
+    ? await resolveTotp(passRef, () => inkPromptTotp())
+    : undefined;
 
   let session = await runTask({
     title: "Sign in",
@@ -113,7 +167,7 @@ export async function runInteractiveSignin(usernameArg?: string): Promise<void> 
   });
 
   if (sessionNeedsVpnTotp(session)) {
-    const upgradeCode = await inkPromptTotp();
+    const upgradeCode = await resolveTotp(passRef, () => inkPromptTotp());
     await runTask({
       title: "Sign in",
       steps: [
