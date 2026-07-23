@@ -71,15 +71,24 @@ jobs:
           fi
           git push origin "v${VERSION}"
 
-  # Tag push (manual or from prepare): verify, GitHub Release, npm publish via OIDC
+  # After prepare (workflow_dispatch) or on tag push: GitHub Release + npm publish via OIDC.
+  # Note: tag pushes from GITHUB_TOKEN do not start a new workflow run, so publish must
+  # also run in the same workflow_dispatch job graph as prepare.
   publish:
-    if: github.event_name == 'push'
+    needs: prepare
+    if: |
+      always() && (
+        github.event_name == 'push' ||
+        (github.event_name == 'workflow_dispatch' && needs.prepare.result == 'success')
+      )
     runs-on: ubuntu-latest
     environment: npm # must match Trusted Publisher "Environment name"
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # workflow_dispatch: prepare just pushed the release tag — check that out
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', inputs.version) || github.ref }}
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -101,9 +110,15 @@ jobs:
 
       - name: Resolve version from tag
         id: ver
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
-          VERSION="${GITHUB_REF_NAME#v}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="$INPUT_VERSION"
+          else
+            VERSION="${GITHUB_REF_NAME#v}"
+          fi
           if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
             echo "Invalid tag version: $VERSION"
             exit 1
