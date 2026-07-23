@@ -76,6 +76,8 @@ protonvpn tui
 protonvpn signin [username]
 protonvpn signin --pass "pass://Personal/Proton"   # optional: Proton Pass CLI
 protonvpn signout
+protonvpn update              # upgrade the CLI itself
+protonvpn update --check      # only check npm for a newer version
 protonvpn countries
 protonvpn servers --country US
 protonvpn connect --country US

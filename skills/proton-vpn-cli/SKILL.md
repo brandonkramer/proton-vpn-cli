@@ -44,6 +44,8 @@ protonvpn signin
 protonvpn connect --country US
 protonvpn status
 protonvpn disconnect
+protonvpn update          # upgrade CLI (bun/npm global)
+protonvpn update --check
 ```
 
 Account must be in [Single Password Mode](https://proton.me/support/single-password). TOTP 2FA is supported; FIDO2/security keys are not.

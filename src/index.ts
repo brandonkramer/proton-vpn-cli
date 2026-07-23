@@ -8,6 +8,7 @@ import { registerSetup } from "./commands/setup.ts";
 import { registerSignin } from "./commands/signin.ts";
 import { registerSignout } from "./commands/signout.ts";
 import { registerStatus } from "./commands/status.tsx";
+import { registerUpdate } from "./commands/update.ts";
 import { launchTui } from "./tui/launch.ts";
 import {
   configureAgentFlags,
@@ -69,6 +70,7 @@ program.hook("preAction", (thisCommand) => {
 });
 
 registerSetup(program);
+registerUpdate(program);
 registerSignin(program);
 registerSignout(program);
 registerCountries(program);
