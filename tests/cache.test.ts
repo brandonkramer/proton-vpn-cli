@@ -3,6 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { LogicalServer, Session } from "../src/proton/types.ts";
+import { VPN_PATH } from "../src/proton/constants.ts";
 
 const session: Session = {
   Code: 1000,
@@ -110,10 +111,6 @@ describe("fetchLogicalServers caching", () => {
       }),
     );
 
-    mock.module("../src/proton/http.ts", () => ({
-      protonFetch: fetchMock,
-    }));
-
     const client = await import("../src/proton/client.ts");
     client.resetLogicalsMemoryCache();
   });
@@ -121,7 +118,6 @@ describe("fetchLogicalServers caching", () => {
   afterEach(async () => {
     if (previousXdg === undefined) delete process.env.XDG_CONFIG_HOME;
     else process.env.XDG_CONFIG_HOME = previousXdg;
-    mock.restore();
     await rm(configHome, { recursive: true, force: true });
   });
 
@@ -130,16 +126,16 @@ describe("fetchLogicalServers caching", () => {
       "../src/proton/client.ts"
     );
 
-    const first = await fetchLogicalServers(session);
+    const first = await fetchLogicalServers(session, { fetch: fetchMock });
     expect(first[0]?.Name).toBe("US#1");
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
-    const second = await fetchLogicalServers(session);
+    const second = await fetchLogicalServers(session, { fetch: fetchMock });
     expect(second[0]?.Name).toBe("US#1");
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
     resetLogicalsMemoryCache();
-    const third = await fetchLogicalServers(session);
+    const third = await fetchLogicalServers(session, { fetch: fetchMock });
     expect(third[0]?.Name).toBe("US#1");
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
@@ -168,7 +164,7 @@ describe("fetchLogicalServers caching", () => {
       }),
     );
 
-    const servers = await fetchLogicalServers(session);
+    const servers = await fetchLogicalServers(session, { fetch: fetchMock });
     expect(servers[0]?.Name).toBe("US#CACHED");
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const call = fetchMock.mock.calls[0] as unknown as [
@@ -200,7 +196,7 @@ describe("fetchLogicalServers caching", () => {
       throw new Error("network down");
     });
 
-    const servers = await fetchLogicalServers(session);
+    const servers = await fetchLogicalServers(session, { fetch: fetchMock });
     expect(servers[0]?.Name).toBe("US#STALE");
   });
 });
@@ -215,18 +211,12 @@ describe("verifySession", () => {
         etag: null,
       }),
     );
-    mock.module("../src/proton/http.ts", () => ({
-      protonFetch: fetchMock,
-    }));
 
     const { verifySession } = await import("../src/proton/auth.ts");
-    const { VPN_PATH } = await import("../src/proton/constants.ts");
-
-    await expect(verifySession(session)).resolves.toBe(true);
+    const fetchApi = fetchMock as unknown as typeof import("../src/proton/http.ts").protonFetch;
+    await expect(verifySession(session, fetchApi)).resolves.toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const call = fetchMock.mock.calls[0] as unknown as [string, unknown];
     expect(call[0]).toBe(VPN_PATH);
-
-    mock.restore();
   });
 });

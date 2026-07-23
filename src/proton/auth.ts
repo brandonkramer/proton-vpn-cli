@@ -63,9 +63,12 @@ export function authInfoRequiresTotp(info: AuthInfoResponse): boolean {
   return info["2FA"]?.Enabled === 1 && info["2FA"]?.TOTP === 1;
 }
 
-export async function verifySession(session: Session): Promise<boolean> {
+export async function verifySession(
+  session: Session,
+  fetchApi: typeof protonFetch = protonFetch,
+): Promise<boolean> {
   try {
-    const { status, data } = await protonFetch<{ Code: number }>(VPN_PATH, {
+    const { status, data } = await fetchApi<{ Code: number }>(VPN_PATH, {
       session,
     });
     return status === 200 && isSuccessCode(data.Code);

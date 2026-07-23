@@ -15,7 +15,7 @@ import {
   LOGICALS_PATH,
   LOGICALS_TTL_MS,
 } from "./constants.ts";
-import { protonFetch } from "./http.ts";
+import { protonFetch, type ProtonFetchResult } from "./http.ts";
 import {
   isSuccessCode,
   type LogicalServer,
@@ -25,6 +25,11 @@ import {
   type VpnCertificateResponse,
   type WireGuardCredentials,
 } from "./types.ts";
+
+type ProtonFetch = <T>(
+  path: string,
+  options?: Parameters<typeof protonFetch>[1],
+) => Promise<ProtonFetchResult<T>>;
 import {
   generateKeyPair,
   type WireGuardKeyPair,
@@ -83,7 +88,9 @@ async function loadCachedLogicals(): Promise<LogicalsCache | null> {
 
 export async function fetchLogicalServers(
   session: Session,
+  options: { fetch?: ProtonFetch } = {},
 ): Promise<LogicalServer[]> {
+  const fetchApi = options.fetch ?? protonFetch;
   const cached = await loadCachedLogicals();
   if (cached && isLogicalsCacheFresh(cached)) {
     return cached.logicalServers;
@@ -95,7 +102,7 @@ export async function fetchLogicalServers(
       headers["If-None-Match"] = cached.etag;
     }
 
-    const { status, data, etag } = await protonFetch<{
+    const { status, data, etag } = await fetchApi<{
       Code: number;
       LogicalServers: LogicalServer[];
       Error?: string;
