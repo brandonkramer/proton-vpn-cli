@@ -105,16 +105,26 @@ Users install from GitHub with Bun (recommended):
 
 ```bash
 bun install -g github:brandonkramer/proton-vpn-cli
+# pin a release:
+bun install -g github:brandonkramer/proton-vpn-cli#v0.1.0
 ```
 
-Maintainers can cut a release by tagging:
+### Cut a new version (maintainers)
 
+**Option A — GitHub Actions UI (recommended)**  
+1. Open [Actions → Release](https://github.com/brandonkramer/proton-vpn-cli/actions/workflows/release.yml)  
+2. **Run workflow**  
+3. Enter version (e.g. `0.2.0`)  
+4. The workflow bumps `package.json`, pushes `v0.2.0`, runs checks, and creates the GitHub Release  
+
+**Option B — git tag**  
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+# bump "version" in package.json first, commit, then:
+git tag v0.2.0
+git push origin v0.2.0
 ```
 
-Optional later: publish to npm (`npm publish`) so `bun add -g proton-vpn-cli` works without the GitHub URL. This project needs Bun at runtime (TypeScript entry + postinstall patch).
+CI runs on every push/PR to `main`. Optional later: publish to npm (`npm publish`).
 
 ## License
 

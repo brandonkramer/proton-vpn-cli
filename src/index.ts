@@ -9,6 +9,10 @@ import { registerSignout } from "./commands/signout.ts";
 import { registerStatus } from "./commands/status.tsx";
 import { launchTui } from "./tui/launch.ts";
 
+const pkg = await Bun.file(new URL("../package.json", import.meta.url)).json() as {
+  version: string;
+};
+
 const argv = process.argv.slice(2);
 
 // No args → interactive TUI. Keep flags/commands for scripting.
@@ -25,7 +29,7 @@ program
     "Unofficial Proton VPN CLI for macOS/Windows (API + system WireGuard).\n" +
       "Run with no arguments to open the interactive TUI.",
   )
-  .version("0.1.0");
+  .version(pkg.version);
 
 registerSignin(program);
 registerSignout(program);

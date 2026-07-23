@@ -1,0 +1,163 @@
+name: Release
+
+on:
+  # Actions → Release → Run workflow → enter version (e.g. 0.2.0)
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Semver version without v prefix (e.g. 0.2.0 or 0.2.0-beta.1)"
+        required: true
+        type: string
+
+  # Or: bump package.json, then git tag v0.2.0 && git push origin v0.2.0
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # workflow_dispatch: bump version, commit to main, push tag (release job follows)
+  prepare:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Validate and bump version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid version: $VERSION"
+            exit 1
+          fi
+
+          bun -e '
+            const pkg = await Bun.file("package.json").json();
+            pkg.version = process.env.VERSION;
+            await Bun.write("package.json", JSON.stringify(pkg, null, 2) + "\n");
+          '
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add package.json
+          if git diff --cached --quiet; then
+            echo "package.json already at $VERSION"
+          else
+            git commit -m "chore: release v${VERSION}"
+            git push origin HEAD:main
+          fi
+
+          if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
+            echo "Tag v${VERSION} already exists locally"
+          else
+            git tag "v${VERSION}"
+          fi
+          git push origin "v${VERSION}"
+
+  # Tag push (manual or from prepare): verify + publish GitHub Release
+  publish:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Test
+        run: bun test
+
+      - name: Resolve version from tag
+        id: ver
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid tag version: $VERSION"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Verify package.json matches tag
+        run: |
+          set -euo pipefail
+          PKG_VERSION="$(bun -e 'console.log((await Bun.file("package.json").json()).version)')"
+          TAG_VERSION="${{ steps.ver.outputs.version }}"
+          if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
+            echo "package.json ($PKG_VERSION) does not match tag ($TAG_VERSION)"
+            exit 1
+          fi
+
+      - name: Generate release notes
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.ver.outputs.tag }}"
+          PREV="$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)"
+          {
+            echo "## Install"
+            echo ""
+            echo '```bash'
+            echo "bun install -g github:brandonkramer/proton-vpn-cli#${TAG}"
+            echo "# or track latest main:"
+            echo "bun install -g github:brandonkramer/proton-vpn-cli"
+            echo '```'
+            echo ""
+            echo "## Changes"
+            echo ""
+            if [ -n "$PREV" ]; then
+              git log --pretty=format:"- %s (%h)" "${PREV}..${TAG}"
+            else
+              git log --pretty=format:"- %s (%h)" -20
+            fi
+            echo ""
+          } > /tmp/release-notes.md
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.ver.outputs.tag }}"
+
+          # workflow_dispatch prerelease flag is not available on tag-push events
+          PRERELEASE_FLAG=""
+          if [[ "$TAG" == *-* ]]; then
+            PRERELEASE_FLAG="--prerelease"
+          fi
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists"
+            exit 0
+          fi
+
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --notes-file /tmp/release-notes.md \
+            --verify-tag \
+            $PRERELEASE_FLAG
