@@ -20,7 +20,8 @@ Not an official Proton product.
 
 | Path | Role |
 |------|------|
-| `src/index.ts` | CLI entry; no args → TUI |
+| `src/index.ts` | CLI entry; no args → TUI (TTY only) |
+| `src/util/agent.ts` | `--json` / quiet UI / emit helpers |
 | `src/commands/` | Commander subcommands |
 | `src/tui/` | Interactive home / pickers / sign-in flow |
 | `src/proton/` | API client, auth, servers, HTTP |
@@ -77,6 +78,14 @@ The workflow bumps `package.json`, tags `vX.Y.Z`, creates the GitHub Release, an
 - Logicals (`/vpn/v1/logicals`): 10m memory + disk TTL, `ETag` / `If-None-Match` / `304`, stale fallback on network failure.
 - Session verify: lightweight `GET /vpn` (not a full logicals fetch).
 - WireGuard keypair reuse until Proton `RefreshTime`; cleared on sign-out / session clear.
+
+### Agent / scripting mode
+
+- Global: `--json`, `-y/--yes`, `--sudo` (see `src/util/agent.ts`)
+- Quiet UI skips Ink (`runTask` / `showMessage`) when JSON, `CI`, `PROTONVPN_AGENT`, or non-TTY
+- Exit codes in `src/util/exit.ts`; `CliError` may carry `exitCode`
+- WireGuard: `sudo -n` first; interactive sudo only if allowed (`--sudo` or human TTY)
+- End-user agent docs: [skills/proton-vpn-cli/SKILL.md](skills/proton-vpn-cli/SKILL.md)
 
 ### Optional Proton Pass sign-in
 

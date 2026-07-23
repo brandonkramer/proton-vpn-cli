@@ -1,6 +1,7 @@
 import type { Command } from "commander";
 import { PASS_ENV } from "../pass/credentials.ts";
 import { runInteractiveSignin } from "../tui/signin-flow.ts";
+import { emitOk, wantsJson } from "../util/agent.ts";
 import { handleCommandError } from "../util/command.ts";
 
 export function registerSignin(program: Command): void {
@@ -14,10 +15,17 @@ export function registerSignin(program: Command): void {
     .description("Sign in to Proton VPN and cache the session")
     .action(async (usernameArg?: string, options?: { pass?: string }) => {
       try {
-        await runInteractiveSignin({
+        const result = await runInteractiveSignin({
           usernameArg,
           passRef: options?.pass,
         });
+        if (wantsJson()) {
+          emitOk({
+            signedIn: true,
+            username: result.username,
+            reused: result.reused,
+          });
+        }
       } catch (error) {
         await handleCommandError(error);
       }

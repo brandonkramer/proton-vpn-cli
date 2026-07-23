@@ -1,6 +1,7 @@
 import { Box, Text, useApp } from "ink";
 import { Alert, Spinner, StatusMessage } from "@inkjs/ui";
 import { useEffect, useState, type ReactNode } from "react";
+import { isQuietUi } from "../util/agent.ts";
 import { Brand } from "./brand.tsx";
 import { renderUntilExit } from "./render.tsx";
 
@@ -127,12 +128,26 @@ function TaskApp({
   );
 }
 
+function quietController(): TaskController {
+  return {
+    setSteps: () => undefined,
+    updateStep: () => undefined,
+    setNote: () => undefined,
+    setResult: () => undefined,
+    done: () => undefined,
+  };
+}
+
 export async function runTask<T>(options: {
   title: string;
   steps: Array<{ id: string; label: string }>;
   note?: string;
   run: (ui: TaskController) => Promise<T>;
 }): Promise<T> {
+  if (isQuietUi()) {
+    return options.run(quietController());
+  }
+
   let controller!: TaskController;
   let ready!: () => void;
   const waitReady = new Promise<void>((resolve) => {

@@ -16,7 +16,9 @@ import {
 import { Brand } from "../ui/brand.tsx";
 import { renderUntilExit } from "../ui/render.tsx";
 import { runTask } from "../ui/task.tsx";
+import { emitOk, isQuietUi, wantsJson } from "../util/agent.ts";
 import { handleCommandError } from "../util/command.ts";
+import { countryName } from "../util/countries.ts";
 
 function ServersTable({
   rows,
@@ -145,6 +147,40 @@ export function registerServers(program: Command): void {
             };
           },
         });
+
+        if (wantsJson()) {
+          emitOk({
+            total: result.total,
+            servers: result.rows.map((server) => ({
+              name: server.Name,
+              country: server.ExitCountry,
+              countryName: countryName(server.ExitCountry),
+              city: server.City || null,
+              tier: server.Tier,
+              tierName: tierName(server.Tier),
+              load: server.Load,
+              score: server.Score,
+              features: featureNames(server.Features),
+            })),
+          });
+          return;
+        }
+
+        if (isQuietUi()) {
+          for (const server of result.rows) {
+            console.log(
+              [
+                server.Name,
+                server.ExitCountry,
+                server.City || "-",
+                tierName(server.Tier),
+                `${server.Load}%`,
+                featureNames(server.Features).join(",") || "-",
+              ].join("\t"),
+            );
+          }
+          return;
+        }
 
         await renderUntilExit(
           <ServersTable rows={result.rows} total={result.total} />,

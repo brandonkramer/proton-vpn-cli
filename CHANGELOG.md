@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-23
+
+### Added
+- Agent-friendly scripting: global `--json`, `-y/--yes`, `--sudo`
+- Stable JSON payloads (`version: 1`) for status/countries/servers/connect/disconnect/signin/signout/setup
+- Exit codes: `0` ok, `1` error, `2` usage, `3` not signed in, `4` privilege needed
+- Non-interactive sudo via `sudo -n` first (interactive only with `--sudo` or a human TTY)
+
+### Changed
+- No-args `protonvpn` opens the TUI only on an interactive TTY; otherwise prints usage (exit 2)
+- Quiet/JSON/CI modes skip Ink spinners and timed error screens (plain stderr / JSON errors)
+
 ## [0.2.3] - 2026-07-23
 
 ### Added
@@ -48,7 +60,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sign in / sign out, list countries and servers, connect / disconnect / status
 - WireGuard connections via system tools
 
-[Unreleased]: https://github.com/brandonkramer/proton-vpn-cli/compare/v0.2.3...HEAD
+[Unreleased]: https://github.com/brandonkramer/proton-vpn-cli/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/brandonkramer/proton-vpn-cli/compare/v0.2.3...v0.3.0
 [0.2.3]: https://github.com/brandonkramer/proton-vpn-cli/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/brandonkramer/proton-vpn-cli/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/brandonkramer/proton-vpn-cli/compare/v0.2.0...v0.2.1

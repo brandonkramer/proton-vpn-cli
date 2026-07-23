@@ -6,7 +6,9 @@ import { listCountries } from "../proton/servers.ts";
 import { runTask } from "../ui/task.tsx";
 import { Brand } from "../ui/brand.tsx";
 import { renderUntilExit } from "../ui/render.tsx";
+import { emitOk, isQuietUi, wantsJson } from "../util/agent.ts";
 import { handleCommandError } from "../util/command.ts";
+import { countryName } from "../util/countries.ts";
 import { useApp } from "ink";
 import { useEffect, type ReactNode } from "react";
 import { StatusMessage } from "@inkjs/ui";
@@ -82,6 +84,27 @@ export function registerCountries(program: Command): void {
             return countries;
           },
         });
+
+        if (wantsJson()) {
+          emitOk({
+            countries: rows.map((country) => ({
+              code: country.code,
+              name: countryName(country.code),
+              count: country.count,
+              cities: country.cities,
+            })),
+          });
+          return;
+        }
+
+        if (isQuietUi()) {
+          for (const country of rows) {
+            console.log(
+              `${country.code}\t${country.count}\t${country.cities.join(", ")}`,
+            );
+          }
+          return;
+        }
 
         await renderUntilExit(<CountriesTable rows={rows} />);
       } catch (error) {

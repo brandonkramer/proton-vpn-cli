@@ -6,41 +6,42 @@ import { loadActiveTunnel, loadSession } from "../config/store.ts";
 import { wireguardConfPath } from "../config/paths.ts";
 import { Brand } from "../ui/brand.tsx";
 import { renderUntilExit } from "../ui/render.tsx";
+import { emitOk, isQuietUi } from "../util/agent.ts";
 import { handleCommandError } from "../util/command.ts";
 import { tunnelStatus } from "../wireguard/manager.ts";
+
+export async function collectStatus() {
+  const session = await loadSession();
+  const active = await loadActiveTunnel();
+  const confPath = active?.confPath ?? wireguardConfPath();
+  const status = await tunnelStatus(confPath);
+  return {
+    signedIn: Boolean(session),
+    username: session?.username ?? null,
+    expiresAt: session?.expiresAt ?? null,
+    tunnel: {
+      up: status.up,
+      server: active?.serverName ?? null,
+      country: active?.country ?? null,
+      city: active?.city ?? null,
+      connectedAt: active?.connectedAt ?? null,
+      detail: status.detail,
+    },
+  };
+}
 
 function StatusApp(): ReactNode {
   const { exit } = useApp();
   const [phase, setPhase] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
-  const [data, setData] = useState<{
-    username: string | null;
-    expiresAt: string | null;
-    up: boolean;
-    serverName?: string;
-    location?: string;
-    connectedAt?: string;
-    detail?: string;
-  } | null>(null);
+  const [data, setData] = useState<Awaited<
+    ReturnType<typeof collectStatus>
+  > | null>(null);
 
   useEffect(() => {
     void (async () => {
       try {
-        const session = await loadSession();
-        const active = await loadActiveTunnel();
-        const confPath = active?.confPath ?? wireguardConfPath();
-        const status = await tunnelStatus(confPath);
-        setData({
-          username: session?.username ?? null,
-          expiresAt: session?.expiresAt ?? null,
-          up: status.up,
-          serverName: active?.serverName,
-          location: active
-            ? `${active.country}${active.city ? `, ${active.city}` : ""}`
-            : undefined,
-          connectedAt: active?.connectedAt,
-          detail: status.detail,
-        });
+        setData(await collectStatus());
         setPhase("ready");
         setTimeout(() => exit(), 1600);
       } catch (err) {
@@ -64,7 +65,7 @@ function StatusApp(): ReactNode {
       ) : null}
       {phase === "ready" && data ? (
         <Box flexDirection="column">
-          <StatusMessage variant={data.username ? "success" : "warning"}>
+          <StatusMessage variant={data.signedIn ? "success" : "warning"}>
             {data.username
               ? `Signed in as ${data.username}`
               : "Not signed in"}
@@ -73,19 +74,26 @@ function StatusApp(): ReactNode {
             <Text dimColor>Session expires: {data.expiresAt}</Text>
           ) : null}
           <Box marginTop={1}>
-            <StatusMessage variant={data.up ? "success" : "warning"}>
-              Tunnel {data.up ? "up" : "down"}
+            <StatusMessage variant={data.tunnel.up ? "success" : "warning"}>
+              Tunnel {data.tunnel.up ? "up" : "down"}
             </StatusMessage>
           </Box>
-          {data.serverName ? <Text>Server: {data.serverName}</Text> : null}
-          {data.location ? <Text>Location: {data.location}</Text> : null}
-          {data.connectedAt ? (
-            <Text dimColor>Connected at: {data.connectedAt}</Text>
+          {data.tunnel.server ? (
+            <Text>Server: {data.tunnel.server}</Text>
           ) : null}
-          {data.up && data.detail ? (
+          {data.tunnel.country ? (
+            <Text>
+              Location: {data.tunnel.country}
+              {data.tunnel.city ? `, ${data.tunnel.city}` : ""}
+            </Text>
+          ) : null}
+          {data.tunnel.connectedAt ? (
+            <Text dimColor>Connected at: {data.tunnel.connectedAt}</Text>
+          ) : null}
+          {data.tunnel.up && data.tunnel.detail ? (
             <Box marginTop={1} flexDirection="column">
               <Text dimColor>WireGuard</Text>
-              <Text>{data.detail}</Text>
+              <Text>{data.tunnel.detail}</Text>
             </Box>
           ) : null}
         </Box>
@@ -100,6 +108,10 @@ export function registerStatus(program: Command): void {
     .description("Show sign-in and tunnel status")
     .action(async () => {
       try {
+        if (isQuietUi()) {
+          emitOk(await collectStatus());
+          return;
+        }
         await renderUntilExit(<StatusApp />);
       } catch (error) {
         await handleCommandError(error);

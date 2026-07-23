@@ -31,7 +31,8 @@ npm install -g proton-vpn-cli
 ### Run
 
 ```bash
-protonvpn          # interactive TUI
+protonvpn          # interactive TUI (TTY only)
+protonvpn status --json   # agent / scripting
 protonvpn --help
 ```
 
@@ -112,6 +113,20 @@ still overrides the Pass username. Interactive prompts remain the default when
 | `--free-only` | Free-tier only |
 
 Country availability depends on your Proton plan.
+
+### Scripting / agents
+
+```bash
+protonvpn status --json
+protonvpn connect --json --country US
+protonvpn signin --json --pass "pass://Personal/Proton"
+```
+
+Use `--json` (or `PROTONVPN_JSON=1` / `PROTONVPN_AGENT=1`) for machine-readable stdout. Errors go to stderr. Global `-y/--yes` skips confirms; `--sudo` allows an interactive macOS sudo prompt (by default agents use passwordless `sudo -n` only).
+
+Exit codes: `0` ok · `1` error · `2` usage · `3` not signed in · `4` privilege needed.
+
+Bare `protonvpn` with no args opens the TUI only in an interactive terminal; otherwise it prints usage and exits `2`.
 
 ## How it works
 

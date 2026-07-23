@@ -19,11 +19,19 @@ import {
   inkPromptTotp,
 } from "../ui/prompts.tsx";
 import { runTask } from "../ui/task.tsx";
+import { isQuietUi } from "../util/agent.ts";
+import { CliError } from "../util/errors.ts";
+import { ExitCode } from "../util/exit.ts";
 
 export interface SigninOptions {
   usernameArg?: string;
   /** Proton Pass item ref (`pass://Vault/Item` or `Vault/Item`), or from PROTONVPN_PASS. */
   passRef?: string;
+}
+
+export interface SigninResult {
+  username: string;
+  reused: boolean;
 }
 
 async function resolveTotp(
@@ -34,13 +42,19 @@ async function resolveTotp(
     const fromPass = await resolvePassTotp(passRef);
     if (fromPass) return fromPass;
   }
+  if (isQuietUi()) {
+    throw new CliError(
+      "2FA code required. Use a Pass item with totp (`--pass`), or run signin in an interactive terminal.",
+      ExitCode.USAGE,
+    );
+  }
   return prompt();
 }
 
 /** Interactive sign-in used by the TUI (same UX as `protonvpn signin`). */
 export async function runInteractiveSignin(
   options: SigninOptions | string = {},
-): Promise<void> {
+): Promise<SigninResult> {
   // Backward-compatible: older callers passed a username string.
   const opts: SigninOptions =
     typeof options === "string" ? { usernameArg: options } : options;
@@ -72,7 +86,9 @@ export async function runInteractiveSignin(
       return null;
     },
   });
-  if (reused) return;
+  if (reused) {
+    return { username: reused.username, reused: true };
+  }
 
   let username: string;
   let password: string;
@@ -94,6 +110,12 @@ export async function runInteractiveSignin(
     });
     username = normalizeUsername(usernameArg?.trim() || fromPass.username);
     password = fromPass.password;
+  } else if (isQuietUi()) {
+    throw new CliError(
+      "Sign-in needs credentials in non-interactive mode.\n" +
+        "Use `--pass pass://Vault/Item` or set PROTONVPN_PASS, or run in a TTY.",
+      ExitCode.USAGE,
+    );
   } else {
     const entered =
       usernameArg?.trim() ||
@@ -190,4 +212,6 @@ export async function runInteractiveSignin(
       },
     });
   }
+
+  return { username, reused: false };
 }

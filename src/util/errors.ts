@@ -5,11 +5,15 @@ import {
   API_CODE_PASSWORD_WRONG,
   API_CODE_SCOPE,
 } from "../proton/types.ts";
+import { ExitCode, type ExitCodeValue } from "./exit.ts";
 
 export class CliError extends Error {
-  constructor(message: string) {
+  readonly exitCode: ExitCodeValue;
+
+  constructor(message: string, exitCode: ExitCodeValue = ExitCode.ERROR) {
     super(message);
     this.name = "CliError";
+    this.exitCode = exitCode;
   }
 }
 

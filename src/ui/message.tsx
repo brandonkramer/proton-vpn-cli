@@ -1,6 +1,7 @@
 import { Box, useApp } from "ink";
 import { Alert } from "@inkjs/ui";
 import { useEffect, type ReactNode } from "react";
+import { emitPlain, isQuietUi, wantsJson } from "../util/agent.ts";
 import { Brand } from "./brand.tsx";
 import { renderUntilExit } from "./render.tsx";
 
@@ -38,6 +39,15 @@ export async function showMessage(options: {
   body?: string;
   holdMs?: number;
 }): Promise<void> {
+  if (isQuietUi()) {
+    if (!wantsJson()) {
+      const text = options.body
+        ? `${options.title}: ${options.body}`
+        : options.title;
+      emitPlain(text);
+    }
+    return;
+  }
   await renderUntilExit(
     <MessageApp
       title={options.title}

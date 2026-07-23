@@ -2,7 +2,9 @@ import { spawn } from "node:child_process";
 import { access } from "node:fs/promises";
 import { basename, dirname } from "node:path";
 import { TUNNEL_INTERFACE } from "../proton/constants.ts";
+import { allowInteractiveSudo, emitPlain, isQuietUi } from "../util/agent.ts";
 import { CliError } from "../util/errors.ts";
+import { ExitCode } from "../util/exit.ts";
 
 export interface TunnelStatus {
   up: boolean;
@@ -14,18 +16,31 @@ const SUDO_PROMPT = "[protonvpn] Enter your macOS login password: ";
 function run(
   command: string,
   args: string[],
-  options: { sudo?: boolean } = {},
+  options: {
+    sudo?: boolean;
+    /** sudo -n: never prompt; fail if a password would be required. */
+    nonInteractiveSudo?: boolean;
+    inheritStdio?: boolean;
+  } = {},
 ): Promise<{ code: number; stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
-    const finalCommand = options.sudo ? "sudo" : command;
-    const finalArgs = options.sudo
-      ? ["-p", SUDO_PROMPT, command, ...args]
-      : args;
+    let finalCommand = command;
+    let finalArgs = args;
+    let inherit = Boolean(options.inheritStdio);
 
-    // Inherit stdin/stderr so the sudo password prompt is visible and typed
-    // into the real terminal (piping hides or confuses the prompt).
+    if (options.sudo) {
+      finalCommand = "sudo";
+      if (options.nonInteractiveSudo) {
+        finalArgs = ["-n", command, ...args];
+        inherit = false;
+      } else {
+        finalArgs = ["-p", SUDO_PROMPT, command, ...args];
+        inherit = true;
+      }
+    }
+
     const child = spawn(finalCommand, finalArgs, {
-      stdio: options.sudo ? ["inherit", "pipe", "inherit"] : ["ignore", "pipe", "pipe"],
+      stdio: inherit ? ["inherit", "pipe", "inherit"] : ["ignore", "pipe", "pipe"],
     });
 
     let stdout = "";
@@ -44,15 +59,65 @@ function run(
 }
 
 function warnAboutPrivilege(): void {
+  if (isQuietUi()) return;
   if (process.platform === "win32") {
-    console.log(
+    emitPlain(
       "WireGuard needs Administrator rights (not your Proton password).",
     );
     return;
   }
-  console.log(
+  emitPlain(
     "WireGuard needs admin rights. If prompted, use your macOS/login password — not your Proton password.",
   );
+}
+
+function privilegeError(detail: string): CliError {
+  if (process.platform === "win32") {
+    return new CliError(
+      `${detail}\nRun an Administrator terminal, or elevate before connect/disconnect.`,
+      ExitCode.PRIVILEGE,
+    );
+  }
+  return new CliError(
+    `${detail}\n` +
+      "Privilege required for wg-quick. Options:\n" +
+      "  • Run `sudo -v` first (caches credentials), then retry\n" +
+      "  • Use `protonvpn --sudo connect …` to allow an interactive sudo prompt\n" +
+      "  • Configure NOPASSWD for wg-quick in sudoers for headless/agent use",
+    ExitCode.PRIVILEGE,
+  );
+}
+
+async function runWgQuick(
+  confPath: string,
+  action: "up" | "down",
+): Promise<{ code: number; stdout: string; stderr: string }> {
+  // Always try passwordless sudo first (works with cached creds / NOPASSWD).
+  const nonInteractive = await run("wg-quick", [action, confPath], {
+    sudo: true,
+    nonInteractiveSudo: true,
+  });
+  if (nonInteractive.code === 0) return nonInteractive;
+
+  const combined = `${nonInteractive.stderr}\n${nonInteractive.stdout}`;
+  const needsPassword =
+    nonInteractive.code !== 0 &&
+    (/password is required|a password is required|-n was specified|sudo: a terminal is required/i.test(
+      combined,
+    ) ||
+      nonInteractive.code === 1);
+
+  if (needsPassword && allowInteractiveSudo()) {
+    return run("wg-quick", [action, confPath], { sudo: true });
+  }
+
+  if (needsPassword) {
+    throw privilegeError(
+      `Failed to ${action === "up" ? "start" : "stop"} WireGuard tunnel (sudo needs a password).`,
+    );
+  }
+
+  return nonInteractive;
 }
 
 async function commandExists(command: string): Promise<boolean> {
@@ -109,16 +174,19 @@ export async function bringUp(confPath: string): Promise<void> {
     const wireguard = await findWireGuardWindows();
     const result = await run(wireguard, ["/installtunnelservice", confPath]);
     if (result.code !== 0) {
+      const detail = (result.stderr || result.stdout).trim();
+      if (/access is denied|administrator|elevat/i.test(detail)) {
+        throw privilegeError(`Failed to start WireGuard tunnel.\n${detail}`);
+      }
       throw new CliError(
-        `Failed to start WireGuard tunnel.\n${result.stderr || result.stdout}`.trim() +
+        `Failed to start WireGuard tunnel.\n${detail}`.trim() +
           "\nRun this terminal as Administrator if permission was denied.",
       );
     }
     return;
   }
 
-  // wg-quick uses the conf basename as interface name; place conf as protonvpn.conf
-  const result = await run("wg-quick", ["up", confPath], { sudo: true });
+  const result = await runWgQuick(confPath, "up");
   if (result.code !== 0) {
     const combined = `${result.stderr}\n${result.stdout}`.trim();
     if (/already exists|already up/i.test(combined)) {
@@ -126,7 +194,7 @@ export async function bringUp(confPath: string): Promise<void> {
     }
     throw new CliError(
       `Failed to start WireGuard tunnel.\n${combined}\n` +
-        "If sudo failed, retry and enter your macOS/login password (not Proton).",
+        "If sudo failed, retry with `protonvpn --sudo connect` or `sudo -v` first.",
     );
   }
 }
@@ -140,15 +208,19 @@ export async function bringDown(confPath: string): Promise<void> {
     const tunnelName = basename(confPath, ".conf");
     const result = await run(wireguard, ["/uninstalltunnelservice", tunnelName]);
     if (result.code !== 0) {
+      const detail = (result.stderr || result.stdout).trim();
+      if (/access is denied|administrator|elevat/i.test(detail)) {
+        throw privilegeError(`Failed to stop WireGuard tunnel.\n${detail}`);
+      }
       throw new CliError(
-        `Failed to stop WireGuard tunnel.\n${result.stderr || result.stdout}`.trim() +
+        `Failed to stop WireGuard tunnel.\n${detail}`.trim() +
           "\nRun this terminal as Administrator if permission was denied.",
       );
     }
     return;
   }
 
-  const result = await run("wg-quick", ["down", confPath], { sudo: true });
+  const result = await runWgQuick(confPath, "down");
   if (result.code !== 0) {
     const combined = `${result.stderr}\n${result.stdout}`.trim();
     if (/is not a WireGuard interface|does not exist|Unable to access interface/i.test(combined)) {
@@ -156,7 +228,7 @@ export async function bringDown(confPath: string): Promise<void> {
     }
     throw new CliError(
       `Failed to stop WireGuard tunnel.\n${combined}\n` +
-        "If sudo failed, retry and enter your macOS/login password (not Proton).",
+        "If sudo failed, retry with `protonvpn --sudo disconnect` or `sudo -v` first.",
     );
   }
 }

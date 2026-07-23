@@ -3,9 +3,9 @@ name: proton-vpn-cli
 description: >-
   Use the unofficial Proton VPN CLI (protonvpn) on macOS/Windows: install,
   sign in (interactive or Proton Pass), browse/filter countries and servers,
-  connect/disconnect WireGuard, and check status. Use when the user wants to
-  run protonvpn, connect to Proton VPN from the terminal, or set up Pass-based
-  sign-in.
+  connect/disconnect WireGuard, check status, and script with --json for agents.
+  Use when the user wants to run protonvpn, automate Proton VPN from a terminal
+  or AI agent, or set up Pass-based sign-in.
 ---
 
 # protonvpn (user guide)
@@ -125,6 +125,39 @@ protonvpn disconnect
 | `--free-only` | Free-tier only |
 
 Country availability depends on your Proton plan.
+
+## Agent / scripting (`--json`)
+
+Prefer flags over the TUI. No-args `protonvpn` only opens the TUI on an interactive TTY; otherwise it exits with usage (code 2).
+
+```bash
+protonvpn status --json
+protonvpn countries --json
+protonvpn servers --json --country US
+protonvpn connect --json --country US
+protonvpn disconnect --json
+protonvpn signin --json --pass "pass://Personal/Proton"
+```
+
+Global flags (before or with the command, via Commander):
+
+| Flag / env | Meaning |
+|------------|---------|
+| `--json` / `PROTONVPN_JSON=1` / `PROTONVPN_AGENT=1` | JSON on stdout; no Ink UI |
+| `-y` / `--yes` | Non-interactive confirms |
+| `--sudo` | Allow interactive macOS sudo password prompt |
+| `CI=true` | Treated like agent mode (quiet UI) |
+
+JSON responses include `"ok": true|false` and `"version": 1`. Errors go to **stderr** as JSON when `--json` is set.
+
+Exit codes: `0` ok · `1` error · `2` usage · `3` not signed in · `4` needs privilege (sudo/Admin).
+
+**Privilege for connect/disconnect:** the CLI tries `sudo -n` first (works after `sudo -v` or NOPASSWD). In JSON/agent mode it will **not** hang on a password prompt unless you pass `--sudo`. On Windows, use an already-elevated shell.
+
+```bash
+sudo -v   # cache credentials, then:
+protonvpn connect --json --country US
+```
 
 ## Setup / troubleshooting
 

@@ -2,6 +2,7 @@ import type { Command } from "commander";
 import { clearActiveTunnel } from "../config/store.ts";
 import { signOut } from "../proton/auth.ts";
 import { runTask } from "../ui/task.tsx";
+import { emitOk, wantsJson } from "../util/agent.ts";
 import { handleCommandError } from "../util/command.ts";
 
 export function registerSignout(program: Command): void {
@@ -32,6 +33,10 @@ export function registerSignout(program: Command): void {
             });
           },
         });
+
+        if (wantsJson()) {
+          emitOk({ signedOut: true });
+        }
       } catch (error) {
         await handleCommandError(error);
       }

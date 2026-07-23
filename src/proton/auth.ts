@@ -1,6 +1,7 @@
 import { clearSession, loadSession, saveSession } from "../config/store.ts";
 import { getSrp } from "../shims/proton-srp.ts";
 import { CliError, messageForApiCode } from "../util/errors.ts";
+import { ExitCode } from "../util/exit.ts";
 import {
   AUTH_2FA_PATH,
   AUTH_INFO_PATH,
@@ -201,7 +202,10 @@ export async function requireSession(): Promise<{
 }> {
   const reused = await tryExistingSession();
   if (reused) return reused;
-  throw new CliError('Not signed in. Run "protonvpn signin" first.');
+  throw new CliError(
+    'Not signed in. Run "protonvpn signin" first.',
+    ExitCode.NOT_SIGNED_IN,
+  );
 }
 
 export async function signOut(): Promise<void> {

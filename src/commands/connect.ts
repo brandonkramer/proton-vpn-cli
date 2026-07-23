@@ -9,7 +9,9 @@ import { prepareConnection } from "../proton/client.ts";
 import { TUNNEL_INTERFACE } from "../proton/constants.ts";
 import { showMessage } from "../ui/message.tsx";
 import { runTask } from "../ui/task.tsx";
+import { emitOk, wantsJson } from "../util/agent.ts";
 import { handleCommandError } from "../util/command.ts";
+import { countryName } from "../util/countries.ts";
 import { formatConnectedSummary } from "../util/summary.ts";
 import { bringDown, bringUp } from "../wireguard/manager.ts";
 
@@ -61,11 +63,6 @@ export function registerConnect(program: Command): void {
               const existing = await loadActiveTunnel();
               if (existing) {
                 ui.updateStep("replace", {
-                  status: "running",
-                  detail: existing.serverName,
-                });
-                // Stop previous tunnel outside Ink (needs sudo stdin).
-                ui.updateStep("replace", {
                   status: "skipped",
                   detail: `will stop ${existing.serverName}`,
                 });
@@ -109,14 +106,31 @@ export function registerConnect(program: Command): void {
 
           await bringUp(prepared.confPath);
 
+          const connectedAt = new Date().toISOString();
           await saveActiveTunnel({
             interfaceName: TUNNEL_INTERFACE,
             confPath: prepared.confPath,
             serverName: prepared.server.Name,
             country: prepared.server.ExitCountry,
             city: prepared.server.City ?? "",
-            connectedAt: new Date().toISOString(),
+            connectedAt,
           });
+
+          if (wantsJson()) {
+            emitOk({
+              connected: {
+                server: prepared.server.Name,
+                country: prepared.server.ExitCountry,
+                countryName: countryName(prepared.server.ExitCountry),
+                city: prepared.server.City || null,
+                load: prepared.server.Load,
+                exitIp:
+                  prepared.physical.ExitIP || prepared.physical.EntryIP || null,
+                connectedAt,
+              },
+            });
+            return;
+          }
 
           await showMessage({
             variant: "success",

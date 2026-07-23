@@ -6,6 +6,7 @@ import {
 import { wireguardConfPath } from "../config/paths.ts";
 import { showMessage } from "../ui/message.tsx";
 import { runTask } from "../ui/task.tsx";
+import { emitOk, wantsJson } from "../util/agent.ts";
 import { handleCommandError } from "../util/command.ts";
 import { bringDown } from "../wireguard/manager.ts";
 
@@ -32,6 +33,14 @@ export function registerDisconnect(program: Command): void {
         const confPath = active?.confPath ?? wireguardConfPath();
         await bringDown(confPath);
         await clearActiveTunnel();
+
+        if (wantsJson()) {
+          emitOk({
+            disconnected: true,
+            server: active?.serverName ?? null,
+          });
+          return;
+        }
 
         await showMessage({
           variant: "success",
