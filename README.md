@@ -115,11 +115,18 @@ Published on npm: [proton-vpn-cli](https://www.npmjs.com/package/proton-vpn-cli)
 
 ### Cut a new version (maintainers)
 
+One-time setup: create an npm **Automation** token at [npmjs.com/settings/~/tokens](https://www.npmjs.com/settings/~/tokens), then add it as a repo secret named `NPM_TOKEN`:
+
+```bash
+gh secret set NPM_TOKEN --repo brandonkramer/proton-vpn-cli
+# paste the token when prompted
+```
+
 **Option A — GitHub Actions UI (recommended)**  
 1. Open [Actions → Release](https://github.com/brandonkramer/proton-vpn-cli/actions/workflows/release.yml)  
 2. **Run workflow**  
 3. Enter version (e.g. `0.2.0`)  
-4. The workflow bumps `package.json`, pushes `v0.2.0`, runs checks, and creates the GitHub Release  
+4. Workflow bumps `package.json`, pushes tag `v0.2.0`, runs checks, creates the GitHub Release, and runs `npm publish`
 
 **Option B — git tag**  
 ```bash
@@ -128,7 +135,7 @@ git tag v0.2.0
 git push origin v0.2.0
 ```
 
-CI runs on every push/PR to `main`. Optional later: publish to npm (`npm publish`).
+CI runs on every push/PR to `main`.
 
 ## License
 
