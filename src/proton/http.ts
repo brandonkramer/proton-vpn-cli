@@ -19,6 +19,8 @@ export interface RequestOptions {
   session?: Session | null;
   apiUrl?: string;
   headers?: Record<string, string>;
+  /** Override fetch (tests). Defaults to global fetch. */
+  fetchImpl?: typeof fetch;
 }
 
 export interface ProtonFetchResult<T> {
@@ -46,7 +48,8 @@ export async function protonFetch<T>(
     headers["x-pm-uid"] = options.session.UID;
   }
 
-  const response = await fetch(`${apiUrl}${path}`, {
+  const fetchImpl = options.fetchImpl ?? globalThis.fetch;
+  const response = await fetchImpl(`${apiUrl}${path}`, {
     method: options.method ?? (options.body ? "POST" : "GET"),
     headers,
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
