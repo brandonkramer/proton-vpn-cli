@@ -83,7 +83,7 @@ async function findWireGuardWindows(): Promise<string> {
 
   throw new CliError(
     "WireGuard for Windows was not found.\n" +
-      "Install it from https://www.wireguard.com/install/ then retry.",
+      "Run `protonvpn setup`, or install from https://www.wireguard.com/install/",
   );
 }
 
@@ -96,7 +96,7 @@ export async function ensureWireGuardTools(): Promise<void> {
   if (!(await commandExists("wg-quick"))) {
     throw new CliError(
       "wg-quick was not found.\n" +
-        "Install WireGuard tools (macOS: `brew install wireguard-tools`) then retry.",
+        "Run `protonvpn setup` (macOS: needs Homebrew for `wireguard-tools`).",
     );
   }
 }

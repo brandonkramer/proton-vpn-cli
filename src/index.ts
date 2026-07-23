@@ -4,6 +4,7 @@ import { registerConnect } from "./commands/connect.ts";
 import { registerCountries } from "./commands/countries.tsx";
 import { registerDisconnect } from "./commands/disconnect.ts";
 import { registerServers } from "./commands/servers.tsx";
+import { registerSetup } from "./commands/setup.ts";
 import { registerSignin } from "./commands/signin.ts";
 import { registerSignout } from "./commands/signout.ts";
 import { registerStatus } from "./commands/status.tsx";
@@ -31,6 +32,7 @@ program
   )
   .version(pkg.version);
 
+registerSetup(program);
 registerSignin(program);
 registerSignout(program);
 registerCountries(program);

@@ -35,7 +35,7 @@
     "tsconfig.json"
   ],
   "scripts": {
-    "postinstall": "bun run scripts/patch-openpgp.ts",
+    "postinstall": "bun run scripts/patch-openpgp.ts && bun run scripts/ensure-wireguard.ts",
     "start": "bun run src/index.ts",
     "protonvpn": "bun run src/index.ts",
     "typecheck": "tsc --noEmit",

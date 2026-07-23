@@ -49,9 +49,9 @@ bun link           # optional: puts `protonvpn` on your PATH
 - Bun ≥ 1.1
 - Proton account in [Single Password Mode](https://proton.me/support/single-password)
 - TOTP if you use 2FA (FIDO2/security keys are not supported)
-- WireGuard:
-  - **macOS:** `brew install wireguard-tools` (sudo for connect/disconnect)
-  - **Windows:** [WireGuard for Windows](https://www.wireguard.com/install/) (Administrator terminal for connect/disconnect)
+- WireGuard tools (install tries this automatically via Homebrew / winget; or run `protonvpn setup`)
+  - **macOS:** Homebrew → `wireguard-tools` (sudo for connect/disconnect)
+  - **Windows:** WireGuard app via winget (Administrator terminal for connect/disconnect)
 
 Close the Proton VPN desktop app before connecting so tunnels do not conflict.
 
